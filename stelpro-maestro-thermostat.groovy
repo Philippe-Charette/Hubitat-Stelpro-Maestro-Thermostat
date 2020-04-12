@@ -11,7 +11,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Stelpro Ki ZigBee Thermostat Hubitat Driver
+ *  Stelpro Maestro Thermostat Hubitat Driver
  *
  *  Notice: This file is a modified version of the SmartThings Device Hander, found in this repository:
  *           https://github.com/stelpro/maestro-thermostat
@@ -31,6 +31,7 @@ metadata {
         capability "ThermostatCoolingSetpoint"
         capability "ThermostatSetpoint"
         capability "Refresh"
+        capability "RelativeHumidityMeasurement"
 
 		fingerprint profileId: "0104", endpointId: "19", inClusters: " 0000,0003,0201,0204,0405", outClusters: "0402"
     }
@@ -78,29 +79,6 @@ def parse(String description) {
             sendEvent(name:"heatingSetpoint", value:map.value)
             sendEvent(name:"thermostatSetpoint", value:map.value)
 		}
-        /* else if (descMap.cluster == "0201" && descMap.attrId == "001C") {
-            logDebug "MODE"
-            if (descMap.value != "04") {
-                map.name = "thermostatMode"
-                map.value = getModeMap()[descMap.value]
-                sendEvent(name:"thermostatMode", value:map.value) 
-            }
-            else {
-                logDebug "descMap.value == \"04\". Ignore and wait for SETPOINT MODE"
-            }
-		}
-        else if (descMap.cluster == "0201" && descMap.attrId == "401C") {
-            logDebug "SETPOINT MODE"
-            logDebug "descMap.value $descMap.value"
-            if (descMap.value != "00") {
-                map.name = "thermostatMode"
-                map.value = getModeMap()[descMap.value]
-                sendEvent(name:"thermostatMode", value:map.value)
-            }
-            else {
-                logDebug "descMap.value == \"00\". Ignore and wait for MODE"
-            }
-		}*/
         else if (descMap.cluster == "0201" && descMap.attrId == "0008") {
         	logDebug "HEAT DEMAND"
             map.name = "thermostatOperatingState"
@@ -114,6 +92,12 @@ def parse(String description) {
             sendEvent(name:"thermostatOperatingState", value:map.value)
         }
 	}
+    else if(description?.startsWith("humidity")) {
+    	log.debug "DEVICE HUMIDITY"
+        map.name = "humidity"
+        map.value = (description - "humidity: " - "%").trim()
+        sendEvent(name:"humidity", value:map.value)
+    }
 
 	def result = null
 	if (map) {
@@ -135,8 +119,7 @@ def refresh() {
     cmds += zigbee.readAttribute(0x201, 0x0000) //Read Local Temperature
     cmds += zigbee.readAttribute(0x201, 0x0008) //Read PI Heating State  
     cmds += zigbee.readAttribute(0x201, 0x0012) //Read Heat Setpoint
-    //cmds += zigbee.readAttribute(0x201, 0x001C) //Read System Mode
-    //cmds += zigbee.readAttribute(0x201, 0x401C, [mfgCode: "0x1185"]) //Read System Mode
+    cmds += zigbee.readAttribute(0x405, 0x0000) //Read Local Humidity
     
     cmds += zigbee.readAttribute(0x204, 0x0000) //Read Temperature Display Mode
     cmds += zigbee.readAttribute(0x204, 0x0001) //Read Keypad Lockout
@@ -167,8 +150,7 @@ def configure(){
     cmds += zigbee.configureReporting(0x201, 0x0000, 0x29, 10, 60, 50)   //Attribute ID 0x0000 = local temperature, Data Type: S16BIT
     cmds += zigbee.configureReporting(0x201, 0x0008, 0x20, 10, 900, 5)   //Attribute ID 0x0008 = pi heating demand, Data Type: U8BIT
     cmds += zigbee.configureReporting(0x201, 0x0012, 0x29, 1, 0, 50)     //Attribute ID 0x0012 = occupied heat setpoint, Data Type: S16BIT
-    //cmds += zigbee.configureReporting(0x201, 0x001C, 0x30, 1, 0, 1)      //Attribute ID 0x001C = system mode, Data Type: 8 bits enum
-    //cmds += zigbee.configureReporting(0x201, 0x401C, 0x30, 1, 0, 1, [mfgCode: "0x1185"])   	   //Attribute ID 0x401C = manufacturer specific setpoint mode, Data Type: 8 bits enum
+    cmds += zigbee.configureReporting(0x405, 0x0000, 0x21, 10, 300, 1)   //Attribute ID 0x0000 = local humidity, Data Type: U16BIT
     
     cmds += zigbee.configureReporting(0x204, 0x0000, 0x30, 1, 0)   	  //Attribute ID 0x0000 = temperature display mode, Data Type: 8 bits enum
     cmds += zigbee.configureReporting(0x204, 0x0001, 0x30, 1, 0)   	  //Attribute ID 0x0001 = keypad lockout, Data Type: 8 bits enum
