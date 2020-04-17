@@ -23,7 +23,7 @@
  */
 
 metadata {
-	definition (name: "Stelpro Maestro ZigBee Thermostat", namespace: "PhilC", author: "PhilC") {
+    definition (name: "Stelpro Maestro ZigBee Thermostat", namespace: "PhilC", author: "PhilC") {
         capability "Configuration"
         capability "TemperatureMeasurement"
         capability "Thermostat"
@@ -33,7 +33,7 @@ metadata {
         capability "Refresh"
         capability "RelativeHumidityMeasurement"
 
-		fingerprint profileId: "0104", endpointId: "19", inClusters: " 0000,0003,0201,0204,0405", outClusters: "0402"
+        fingerprint profileId: "0104", endpointId: "19", inClusters: " 0000,0003,0201,0204,0405", outClusters: "0402"
     }
     
     preferences {
@@ -44,22 +44,22 @@ metadata {
     
 
 def parse(String description) {
-	logDebug "Parse description $description"
+    logDebug "Parse description $description"
     def descMap = zigbee.parseDescriptionAsMap(description)
     logDebug "Desc Map: $descMap"
-	def map = [:]
-	if (description?.startsWith("read attr -")) {
-		if (descMap.cluster == "0201" && descMap.attrId == "0000")
+    def map = [:]
+    if (description?.startsWith("read attr -")) {
+        if (descMap.cluster == "0201" && descMap.attrId == "0000")
         {
-			map.name = "temperature"
-			map.value = getTemperature(descMap.value)
-            if (descMap.value == "7FFD") {		//0x7FFD
+            map.name = "temperature"
+            map.value = getTemperature(descMap.value)
+            if (descMap.value == "7FFD") {       //0x7FFD
                 map.value = "low"
             }
-            else if (descMap.value == "7FFF") {	//0x7FFF
+            else if (descMap.value == "7FFF") {  //0x7FFF
                 map.value = "high"
             }
-            else if (descMap.value == "8000") {	//0x8000
+            else if (descMap.value == "8000") {  //0x8000
                 map.value = "--"
             }
             
@@ -68,46 +68,46 @@ def parse(String description) {
             }
                         
             sendEvent(name:"temperature", value:map.value)
-		}
+        }
         else if (descMap.cluster == "0201" && descMap.attrId == "0012") {
-			logDebug "HEATING SETPOINT"
-			map.name = "heatingSetpoint"
-			map.value = getTemperature(descMap.value)
-            if (descMap.value == "8000") {		//0x8000
+            logDebug "HEATING SETPOINT"
+            map.name = "heatingSetpoint"
+            map.value = getTemperature(descMap.value)
+            if (descMap.value == "8000") {        //0x8000
                 map.value = getTemperature("01F4")  // 5 Celsius (minimum setpoint)
             }
             sendEvent(name:"heatingSetpoint", value:map.value)
             sendEvent(name:"thermostatSetpoint", value:map.value)
-		}
+        }
         else if (descMap.cluster == "0201" && descMap.attrId == "0008") {
-        	logDebug "HEAT DEMAND"
+            logDebug "HEAT DEMAND"
             map.name = "thermostatOperatingState"
             map.value = getModeMap()[descMap.value]
             if (descMap.value < "10") {
-            	map.value = "idle"
+                map.value = "idle"
             }
             else {
-            	map.value = "heating"
+                map.value = "heating"
             }
             sendEvent(name:"thermostatOperatingState", value:map.value)
         }
-        else if (descMap.Cluster == "0405" && descMap.attrId == "0000") {
+        else if (descMap.cluster == "0405" && descMap.attrId == "0000") {
             logDebug "DEVICE HUMIDITY"
             map.name = "humidity"
             map.value = Integer.parseInt(descMap.value, 16) / 100
             sendEvent(name:"humidity", value:map.value)
         }
-	}
+    }
 
-	def result = null
-	if (map) {
-		result = createEvent(map)
-	}
-	logDebug "Parse returned $map"
-	return result
+    def result = null
+    if (map) {
+        result = createEvent(map)
+    }
+    logDebug "Parse returned $map"
+    return result
 }
 
-def logsOff() {
+def logsOff(){
     log.warn "debug logging disabled..."
     device.updateSetting("logEnable",[value:"false",type:"bool"])
 }
@@ -134,7 +134,7 @@ def logDebug(value){
 def configure(){    
     log.warn "configure..."
     runIn(1800,logsOff)    
-	logDebug "binding to Thermostat cluster"
+    logDebug "binding to Thermostat cluster"
     
     // Set unused default values (for Google Home Integration)
     sendEvent(name: "coolingSetpoint", value:getTemperature("0BB8")) // 0x0BB8 =  30 Celsius
@@ -152,29 +152,29 @@ def configure(){
     cmds += zigbee.configureReporting(0x201, 0x0012, 0x29, 1, 0, 50)     //Attribute ID 0x0012 = occupied heat setpoint, Data Type: S16BIT
     cmds += zigbee.configureReporting(0x405, 0x0000, 0x21, 10, 300, 1)   //Attribute ID 0x0000 = local humidity, Data Type: U16BIT
     
-    cmds += zigbee.configureReporting(0x204, 0x0000, 0x30, 1, 0)   	  //Attribute ID 0x0000 = temperature display mode, Data Type: 8 bits enum
-    cmds += zigbee.configureReporting(0x204, 0x0001, 0x30, 1, 0)   	  //Attribute ID 0x0001 = keypad lockout, Data Type: 8 bits enum
+    cmds += zigbee.configureReporting(0x204, 0x0000, 0x30, 1, 0)         //Attribute ID 0x0000 = temperature display mode, Data Type: 8 bits enum
+    cmds += zigbee.configureReporting(0x204, 0x0001, 0x30, 1, 0)         //Attribute ID 0x0001 = keypad lockout, Data Type: 8 bits enum
     
     return cmds + refresh()
 }
 
 def getModeMap() { [
-	"00":"off",
+    "00":"off",
     "04":"heat",
-	"05":"eco"
+    "05":"eco"
 ]}
 
 def getTemperature(value) {
-	if (value != null) {
-    	logDebug("getTemperature: value $value")
-		def celsius = Integer.parseInt(value, 16) / 100
-		if (getTemperatureScale() == "C") {
-			return celsius
-		}
+    if (value != null) {
+        logDebug("getTemperature: value $value")
+        def celsius = Integer.parseInt(value, 16) / 100
+        if (getTemperatureScale() == "C") {
+            return celsius
+        }
         else {
-			return Math.round(celsiusToFahrenheit(celsius))
-		}
-	}
+            return Math.round(celsiusToFahrenheit(celsius))
+        }
+    }
 }
 
 def getTemperatureScale() {
@@ -182,12 +182,12 @@ def getTemperatureScale() {
 }
 
 def off() {
-	logDebug "off"
+    logDebug "off"
     zigbee.writeAttribute(0x201, 0x001C, 0x30, 0)
 }
 
 def heat() {
-	logDebug "heat"
+    logDebug "heat"
     
     def cmds = []
     cmds += zigbee.writeAttribute(0x201, 0x001C, 0x30, 04, [:], 1000) // MODE    
@@ -206,7 +206,7 @@ def auto() {
 
 def emergencyHeat() {
     log.info "emergencyHeat mode is not available for this device. => Defaulting to heat mode instead."
-	heat()
+    heat()
 }
 
 def fanAuto() {
@@ -230,17 +230,17 @@ def setThermostatFanMode(fanmode){
 }
 
 def setHeatingSetpoint(preciseDegrees) {
-	if (preciseDegrees != null) {
-		def temperatureScale = getTemperatureScale()
-		def degrees = new BigDecimal(preciseDegrees).setScale(1, BigDecimal.ROUND_HALF_UP)
+    if (preciseDegrees != null) {
+        def temperatureScale = getTemperatureScale()
+        def degrees = new BigDecimal(preciseDegrees).setScale(1, BigDecimal.ROUND_HALF_UP)
         
-		logDebug "setHeatingSetpoint(${degrees} ${temperatureScale})"
+        logDebug "setHeatingSetpoint(${degrees} ${temperatureScale})"
         
         def celsius = (temperatureScale == "C") ? degrees as Float : (fahrenheitToCelsius(degrees) as Float).round(2)
         int celsius100 = Math.round(celsius * 100)
         
         zigbee.writeAttribute(0x201, 0x0012, 0x29, celsius100) //Write Heat Setpoint      
-	}
+    }
 }
 
 def setCoolingSetpoint(degrees) {
@@ -248,12 +248,12 @@ def setCoolingSetpoint(degrees) {
 }
 
 def setThermostatMode(String value) {
-	logDebug "setThermostatMode({$value})"
-	def currentMode = device.currentState("thermostatMode")?.value
-	def lastTriedMode = state.lastTriedMode ?: currentMode ?: "heat"
-	def modeNumber;
-	Integer setpointModeNumber;
-	def modeToSendInString;
+    logDebug "setThermostatMode({$value})"
+    def currentMode = device.currentState("thermostatMode")?.value
+    def lastTriedMode = state.lastTriedMode ?: currentMode ?: "heat"
+    def modeNumber;
+    Integer setpointModeNumber;
+    def modeToSendInString;
     switch (value) {
         case "heat":
         case "emergency heat":
@@ -286,14 +286,14 @@ def parameterSetting() {
     
     if (valid_lock == 1)
     {
-    	log.info "lock valid"
+        log.info "lock valid"
         def cmds = []
         
-        cmds+= zigbee.writeAttribute(0x204, 0x01, 0x30, lockmode)	//Write Lock Mode
+        cmds+= zigbee.writeAttribute(0x204, 0x01, 0x30, lockmode)    //Write Lock Mode
         cmds+= refresh()
         return cmds
     }
     else {
-    	log.info "nothing valid"
+        log.info "nothing valid"
     }
 }
