@@ -19,7 +19,7 @@
  *  Author: Philippe Charette
  *  Author: Stelpro
  *
- *  Date: 2020-01-22
+ *  Date: 2020-04-16
  */
 
 metadata {
@@ -91,13 +91,13 @@ def parse(String description) {
             }
             sendEvent(name:"thermostatOperatingState", value:map.value)
         }
+        else if (descMap.Cluster == "0405" && descMap.attrId == "0000") {
+            logDebug "DEVICE HUMIDITY"
+            map.name = "humidity"
+            map.value = Integer.parseInt(descMap.value, 16) / 100
+            sendEvent(name:"humidity", value:map.value)
+        }
 	}
-    else if(description?.startsWith("humidity")) {
-    	log.debug "DEVICE HUMIDITY"
-        map.name = "humidity"
-        map.value = (description - "humidity: " - "%").trim()
-        sendEvent(name:"humidity", value:map.value)
-    }
 
 	def result = null
 	if (map) {
@@ -107,7 +107,7 @@ def parse(String description) {
 	return result
 }
 
-def logsOff(){
+def logsOff() {
     log.warn "debug logging disabled..."
     device.updateSetting("logEnable",[value:"false",type:"bool"])
 }
@@ -190,19 +190,9 @@ def heat() {
 	logDebug "heat"
     
     def cmds = []
-    cmds += zigbee.writeAttribute(0x201, 0x001C, 0x30, 04, [:], 1000) // MODE
-    //cmds += zigbee.writeAttribute(0x201, 0x401C, 0x30, 04, [mfgCode: "0x1185"]) // SETPOINT MODE    
+    cmds += zigbee.writeAttribute(0x201, 0x001C, 0x30, 04, [:], 1000) // MODE    
     return cmds
 }
-
-/*def eco() {
-	logDebug "eco"
-    
-    def cmds = []
-    cmds += zigbee.writeAttribute(0x201, 0x001C, 0x30, 04, [:], 1000) // MODE
-    cmds += zigbee.writeAttribute(0x201, 0x401C, 0x30, 05, [mfgCode: "0x1185"]) // SETPOINT MODE    
-    return cmds
-}*/
 
 def cool() {
     log.info "cool mode is not available for this device. => Defaulting to off instead."
